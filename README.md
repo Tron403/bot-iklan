@@ -2,7 +2,7 @@
 
 ## HOW TO USE
 - Pastikan sudah menginstall python pada OS dan disarankan menggunakan Python3
-- Download Chrome Driver here: ```https://chromedriver.chromium.org/downloads```
+- Download Chrome Driver disini: ```https://chromedriver.chromium.org/downloads```
 - Buat folder pada Drive C bernama ```ChromeDriver```
 - Letakkan file ```chromedriver.exe``` yang telah di download kedalam folder ```C:\ChromeDriver\```
 - jalankan perintah ini: ```pip install -m requirements.txt``` pada konsol
