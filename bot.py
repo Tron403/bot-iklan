@@ -27,7 +27,7 @@ class BrowserBot:
         with open('user_agents.txt', 'r') as file:
             self.user_agents = [line.strip() for line in file]
 
-        self.refresh_interval = 10
+        self.refresh_interval = 300
 
         self.app = self.create_gui()
 
@@ -109,22 +109,54 @@ class BrowserBot:
                 self.drivers[url] = driver
 
             while self.running:
+                threads = []
                 for url, driver in self.drivers.items():
-                    user_agent = random.choice(self.user_agents)
-                    driver.execute_cdp_cmd(
-                        "Network.setUserAgentOverride", {
-                            "userAgent": user_agent}
-                    )
-                    driver.get(url)
-                    time.sleep(self.refresh_interval)
+                    thread = threading.Thread(
+                        target=self.process_url, args=(driver, url))
+                    threads.append(thread)
+                    thread.start()
 
-                    if not self.check_browser_status(driver):
-                        print("Browser telah ditutup oleh user")
-                        self.stop_bot()
-                        break
+                # Join all threads to wait for them to finish
+                for thread in threads:
+                    thread.join()
+
         finally:
             for driver in self.drivers.values():
                 driver.quit()
+
+    def process_url(self, driver, url):
+        try:
+            # Cek jumlah tab saat ini
+            if len(driver.window_handles) > 1:
+                # Tutup tab tambahan jika ada lebih dari satu tab
+                for handle in driver.window_handles[1:]:
+                    driver.switch_to.window(handle)
+                    driver.close()
+                    # Kembalikan fokus ke tab pertama
+                driver.switch_to.window(driver.window_handles[0])
+
+            user_agent = random.choice(self.user_agents)
+            driver.execute_cdp_cmd(
+                "Network.setUserAgentOverride", {"userAgent": user_agent}
+            )
+            driver.get(url)
+
+            # Atur header HTTP untuk mengatasi deteksi proxy
+            driver.execute_cdp_cmd("Network.clearBrowserCookies", {})
+            driver.execute_cdp_cmd("Network.clearBrowserCache", {})
+            driver.execute_cdp_cmd(
+                "Network.setExtraHTTPHeaders",
+                {"headers": {"Proxy-Control": "no-cache"}}
+            )
+
+            driver.refresh()
+            time.sleep(self.refresh_interval)
+
+            if not self.check_browser_status(driver):
+                print("Browser telah ditutup oleh user")
+                self.stop_bot()
+        except Exception as e:
+            print(f"Error processing URL {url}: {e}")
 
     def start_bot(self):
         if not self.running:
