@@ -1,9 +1,9 @@
 from customtkinter import *
-from selenium import webdriver
 from selenium.common.exceptions import NoSuchWindowException
 import threading
 import time
 import random
+import undetected_chromedriver as uc
 
 
 class BrowserBot:
@@ -93,19 +93,19 @@ class BrowserBot:
     def run_bot(self, urls):
         chromedriver_path = "C:/ChromeDriver/chromedriver.exe"
 
-        chrome_options = webdriver.ChromeOptions()
-        chrome_options.add_argument('--ignore-certificate-errors')
-        chrome_options.add_argument('--allow-insecure-localhost')
-        chrome_options.add_argument('--ignore-ssl-errors')
-        chrome_options.add_argument('--disable-notifications')
-        chrome_options.add_experimental_option(
-            "excludeSwitches", ["enable-automation"])
-
         try:
             for url in urls:
-                service = webdriver.chrome.service.Service(chromedriver_path)
-                driver = webdriver.Chrome(
-                    service=service, options=chrome_options)
+                # Use undetected_chromedriver.v2.Chrome instead of webdriver.Chrome
+                options = uc.ChromeOptions()
+                options.add_argument('--ignore-certificate-errors')
+                options.add_argument('--allow-insecure-localhost')
+                options.add_argument('--ignore-ssl-errors')
+                options.add_argument('--disable-notifications')
+                options.add_experimental_option(
+                    "excludeSwitches", ["enable-automation"])
+
+                driver = uc.Chrome(
+                    executable_path=chromedriver_path, options=options)
                 self.drivers[url] = driver
 
             while self.running:
