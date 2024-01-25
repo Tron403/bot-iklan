@@ -1,10 +1,9 @@
 from customtkinter import *
 from selenium.common.exceptions import NoSuchWindowException
-from selenium.webdriver.common.proxy import Proxy, ProxyType
 import threading
 import time
 import random
-import undetected_chromedriver as uc
+import seleniumwire.undetected_chromedriver as uc
 
 
 class BrowserBot:
@@ -95,60 +94,68 @@ class BrowserBot:
         chromedriver_path = "C:/ChromeDriver/chromedriver.exe"
 
         try:
+            threads = []
+
             for url in urls:
-                # Set up proxy if provided
-                if proxy_address:
-                    proxy = Proxy({
-                        'proxyType': ProxyType.MANUAL,
-                        'httpProxy': proxy_address,
-                        'ftpProxy': proxy_address,
-                        'sslProxy': proxy_address,
-                        'noProxy': ''
-                    })
-                    capabilities = uc.DesiredCapabilities.CHROME.copy()
-                    proxy.add_to_capabilities(capabilities)
+                # Create a new driver for each URL
+                chrome_options = uc.ChromeOptions()
 
-                    driver = uc.Chrome(
-                        executable_path=chromedriver_path, desired_capabilities=capabilities)
-                else:
-                    driver = uc.Chrome(executable_path=chromedriver_path)
+                # Proxy Options
+                proxy_options = {
+                    'proxy': {
+                        'http': proxy_address,
+                        'https': proxy_address,
+                        'no_proxy': 'localhost,127.0.0.1'
+                    }
+                }
 
-                self.drivers[url] = driver
+                chrome_options.add_argument('--ignore-certificate-errors')
+                chrome_options.add_argument('--allow-insecure-localhost')
+                chrome_options.add_argument('--ignore-ssl-errors')
+                chrome_options.add_argument('--disable-notifications')
+                chrome_options.add_argument('--disable-web-security')
+                chrome_options.add_argument('--disable-site-isolation-trials')
+                driver = uc.Chrome(
+                    executable_path=chromedriver_path,
+                    options=chrome_options,
+                    seleniumwire_options=proxy_options
+                )
 
-            while self.running:
-                threads = []
-                for url, driver in self.drivers.items():
-                    thread = threading.Thread(
-                        target=self.process_url, args=(driver, url))
-                    threads.append(thread)
-                    thread.start()
+                # Add the thread to the list
+                thread = threading.Thread(
+                    target=self.process_url, args=(driver, url))
+                threads.append(thread)
+                thread.start()
 
-                # Join all threads to wait for them to finish
-                for thread in threads:
-                    thread.join()
+            # Join all threads to wait for them to finish
+            for thread in threads:
+                thread.join()
 
+        except Exception as e:
+            print(f"Error in run_bot: {e}")
         finally:
             for driver in self.drivers.values():
                 driver.quit()
 
     def process_url(self, driver, url):
         try:
-            # Cek jumlah tab saat ini
             if len(driver.window_handles) > 1:
-                # Tutup tab tambahan jika ada lebih dari satu tab
                 for handle in driver.window_handles[1:]:
                     driver.switch_to.window(handle)
                     driver.close()
-                    # Kembalikan fokus ke tab pertama
+
                 driver.switch_to.window(driver.window_handles[0])
 
             user_agent = random.choice(self.user_agents)
+
+            driver.execute_script(
+                "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+
             driver.execute_cdp_cmd(
                 "Network.setUserAgentOverride", {"userAgent": user_agent}
             )
             driver.get(url)
 
-            # Atur header HTTP untuk mengatasi deteksi proxy
             driver.execute_cdp_cmd("Network.clearBrowserCookies", {})
             driver.execute_cdp_cmd("Network.clearBrowserCache", {})
             driver.execute_cdp_cmd(
@@ -169,22 +176,17 @@ class BrowserBot:
         if not self.running:
             self.running = True
             selected_urls = self.all_urls[:int(self.selected_option)]
-
-            # Pass the proxy_address to the run_bot method
             threading.Thread(target=self.run_bot,
                              args=(selected_urls, proxy_address)).start()
 
     def check_browser_status(self, driver):
         try:
-            # Check if the window handle is still valid
             current_window_handle = driver.current_window_handle
             driver.switch_to.window(current_window_handle)
             return True
         except NoSuchWindowException:
-            # Handle the case where the window is already closed
             return False
         except Exception as e:
-            # Handle other exceptions if necessary
             print(f"Error checking browser status: {e}")
             return False
 
@@ -207,8 +209,11 @@ class BrowserBot:
 
 if __name__ == "__main__":
     bot = BrowserBot()
-    # Specify the proxy address
-    proxy_address = "http://customer-jn85267072:81l404qd@proxy.goproxy.com:30000"
-    # Start the bot with the specified proxy address
-    bot.start_bot(proxy_address)
+
+    # GUI dimulai terlebih dahulu
     bot.app.mainloop()
+
+    # Setelah GUI ditutup, jalankan bot jika sudah dipilih
+    if bot.running:
+        proxy_address = "http://customer-jn85267072:suksesin@proxy.goproxy.com:30000"
+        bot.start_bot(proxy_address)
