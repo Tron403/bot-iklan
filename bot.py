@@ -1,5 +1,6 @@
 from customtkinter import *
 from selenium.common.exceptions import NoSuchWindowException
+from selenium.webdriver.common.proxy import Proxy, ProxyType
 import threading
 import time
 import random
@@ -27,7 +28,7 @@ class BrowserBot:
         with open('user_agents.txt', 'r') as file:
             self.user_agents = [line.strip() for line in file]
 
-        self.refresh_interval = 300
+        self.refresh_interval = random.uniform(199, 300)
 
         self.app = self.create_gui()
 
@@ -90,22 +91,28 @@ class BrowserBot:
         app.protocol("WM_DELETE_WINDOW", self.on_closing)
         return app
 
-    def run_bot(self, urls):
+    def run_bot(self, urls, proxy_address=None):
         chromedriver_path = "C:/ChromeDriver/chromedriver.exe"
 
         try:
             for url in urls:
-                # Use undetected_chromedriver.v2.Chrome instead of webdriver.Chrome
-                options = uc.ChromeOptions()
-                options.add_argument('--ignore-certificate-errors')
-                options.add_argument('--allow-insecure-localhost')
-                options.add_argument('--ignore-ssl-errors')
-                options.add_argument('--disable-notifications')
-                options.add_experimental_option(
-                    "excludeSwitches", ["enable-automation"])
+                # Set up proxy if provided
+                if proxy_address:
+                    proxy = Proxy({
+                        'proxyType': ProxyType.MANUAL,
+                        'httpProxy': proxy_address,
+                        'ftpProxy': proxy_address,
+                        'sslProxy': proxy_address,
+                        'noProxy': ''
+                    })
+                    capabilities = uc.DesiredCapabilities.CHROME.copy()
+                    proxy.add_to_capabilities(capabilities)
 
-                driver = uc.Chrome(
-                    executable_path=chromedriver_path, options=options)
+                    driver = uc.Chrome(
+                        executable_path=chromedriver_path, desired_capabilities=capabilities)
+                else:
+                    driver = uc.Chrome(executable_path=chromedriver_path)
+
                 self.drivers[url] = driver
 
             while self.running:
@@ -158,12 +165,14 @@ class BrowserBot:
         except Exception as e:
             print(f"Error processing URL {url}: {e}")
 
-    def start_bot(self):
+    def start_bot(self, proxy_address=None):
         if not self.running:
             self.running = True
             selected_urls = self.all_urls[:int(self.selected_option)]
+
+            # Pass the proxy_address to the run_bot method
             threading.Thread(target=self.run_bot,
-                             args=(selected_urls,)).start()
+                             args=(selected_urls, proxy_address)).start()
 
     def check_browser_status(self, driver):
         try:
@@ -198,4 +207,8 @@ class BrowserBot:
 
 if __name__ == "__main__":
     bot = BrowserBot()
+    # Specify the proxy address
+    proxy_address = "http://customer-jn85267072:81l404qd@proxy.goproxy.com:30000"
+    # Start the bot with the specified proxy address
+    bot.start_bot(proxy_address)
     bot.app.mainloop()
