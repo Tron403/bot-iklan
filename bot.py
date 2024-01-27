@@ -163,7 +163,7 @@ class BrowserBot:
                 {"headers": {"Proxy-Control": "no-cache"}}
             )
 
-            while self.running:  # Continue refreshing as long as the bot is running
+            while self.running:  # Keep refreshing as long as the bot is running
                 driver.refresh()
                 time.sleep(self.refresh_interval)
 
@@ -217,5 +217,5 @@ if __name__ == "__main__":
 
     # Setelah GUI ditutup, jalankan bot jika sudah dipilih
     if bot.running:
-        proxy_address = "http://customer-jn85267072:suksesin@proxy.goproxy.com:30000"
+        proxy_address = "154.7.44.184:62000"
         bot.start_bot(proxy_address)
