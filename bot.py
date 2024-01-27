@@ -163,12 +163,14 @@ class BrowserBot:
                 {"headers": {"Proxy-Control": "no-cache"}}
             )
 
-            driver.refresh()
-            time.sleep(self.refresh_interval)
+            while self.running:  # Continue refreshing as long as the bot is running
+                driver.refresh()
+                time.sleep(self.refresh_interval)
 
-            if not self.check_browser_status(driver):
-                print("Browser telah ditutup oleh user")
-                self.stop_bot()
+                if not self.check_browser_status(driver):
+                    print("Browser telah ditutup oleh user")
+                    self.stop_bot()
+                    break  # Exit the loop if the browser is closed
         except Exception as e:
             print(f"Error processing URL {url}: {e}")
 
