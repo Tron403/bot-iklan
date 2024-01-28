@@ -4,6 +4,9 @@ import threading
 import time
 import random
 import seleniumwire.undetected_chromedriver as uc
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.common.exceptions import TimeoutException
+from selenium.common.exceptions import NoAlertPresentException
 
 
 class BrowserBot:
@@ -27,7 +30,7 @@ class BrowserBot:
         with open('user_agents.txt', 'r') as file:
             self.user_agents = [line.strip() for line in file]
 
-        self.refresh_interval = random.uniform(199, 300)
+        self.refresh_interval = random.uniform(50, 150)
 
         self.app = self.create_gui()
 
@@ -137,6 +140,14 @@ class BrowserBot:
             for driver in self.drivers.values():
                 driver.quit()
 
+    def handle_alerts(self, driver):
+        try:
+            alert = driver.switch_to.alert
+            alert.dismiss()  # Dismiss the alert
+        except NoAlertPresentException:
+            # Handle NoAlertPresentException if needed
+            pass
+
     def process_url(self, driver, url):
         try:
             if len(driver.window_handles) > 1:
@@ -163,14 +174,32 @@ class BrowserBot:
                 {"headers": {"Proxy-Control": "no-cache"}}
             )
 
-            while self.running:  # Keep refreshing as long as the bot is running
-                driver.refresh()
-                time.sleep(self.refresh_interval)
+            # Handle unexpected alert
+            self.handle_alerts(driver)
 
-                if not self.check_browser_status(driver):
-                    print("Browser telah ditutup oleh user")
-                    self.stop_bot()
-                    break  # Exit the loop if the browser is closed
+            # Wait for a certain condition before refreshing the page
+            WebDriverWait(driver, 10).until(lambda x: x.execute_script(
+                "return document.readyState === 'complete'"))
+
+            # Switch to default content
+            driver.switch_to.default_content()
+
+            # Refresh the page
+            driver.refresh()
+            time.sleep(self.refresh_interval)
+
+            # Check browser status after refresh
+            if not self.check_browser_status(driver):
+                print("Browser telah ditutup oleh user")
+                self.stop_bot()
+
+        except NoAlertPresentException:
+            # Handle NoAlertPresentException
+            pass  # No alert is present, continue with the rest of the code
+        except TimeoutException:
+            # Handle TimeoutException, e.g., retry refreshing the page
+            print(f"TimeoutException: Failed to refresh the page: {url}")
+            self.process_url(driver, url)
         except Exception as e:
             print(f"Error processing URL {url}: {e}")
 
@@ -217,5 +246,5 @@ if __name__ == "__main__":
 
     # Setelah GUI ditutup, jalankan bot jika sudah dipilih
     if bot.running:
-        proxy_address = "154.7.44.184:62000"
+        proxy_address = ""
         bot.start_bot(proxy_address)
